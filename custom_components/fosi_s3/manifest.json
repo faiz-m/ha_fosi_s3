@@ -1,0 +1,12 @@
+{
+  "domain": "fosi_s3",
+  "name": "Fosi Audio S3",
+  "codeowners": ["@faiz-m"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/faiz-m/ha_fosi_s3",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/faiz-m/ha_fosi_s3/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
