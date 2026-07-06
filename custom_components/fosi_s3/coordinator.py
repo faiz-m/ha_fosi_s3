@@ -56,12 +56,9 @@ class FosiS3Coordinator(DataUpdateCoordinator[DeviceState]):
         return self.client.state
 
     async def async_start(self) -> None:
-        """Start the event polling loop and fetch initial sources."""
-        try:
-            self.available_sources = await self.client.get_available_sources()
-        except Exception:
-            _LOGGER.warning("Could not fetch initial sources")
+        """Start the event stream and do an initial data refresh."""
         await self.client.start_polling()
+        await self.async_refresh()
 
     async def async_stop(self) -> None:
         """Stop polling and disconnect."""

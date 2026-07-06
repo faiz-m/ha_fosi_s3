@@ -15,11 +15,10 @@ from homeassistant.components.media_player import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
 from .coordinator import FosiS3Coordinator
+from .entity import FosiS3Entity
 from .pyfosi.models import DeviceState, PlayState, PowerTarget
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,25 +34,17 @@ async def async_setup_entry(
     async_add_entities([FosiS3MediaPlayer(coordinator)])
 
 
-class FosiS3MediaPlayer(CoordinatorEntity[FosiS3Coordinator], MediaPlayerEntity):
+class FosiS3MediaPlayer(FosiS3Entity, MediaPlayerEntity):
     """Representation of a Fosi Audio S3 media player."""
 
     _attr_device_class = MediaPlayerDeviceClass.RECEIVER
-    _attr_has_entity_name = True
-    _attr_name = None  # Use device name from HA device registry
+    _attr_name = None  # primary entity — takes the device name
+    _attr_volume_step = 0.05
 
     def __init__(self, coordinator: FosiS3Coordinator) -> None:
         """Initialize the media player."""
         super().__init__(coordinator)
-        self._client = coordinator.client
-        self._attr_unique_id = self._client.device_info.system_member_id or self._client.host
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, self._attr_unique_id)},
-            "name": self._client.device_info.device_name or self._client.device_info.product_name,
-            "manufacturer": self._client.device_info.manufacturer,
-            "model": self._client.device_info.product_name,
-            "sw_version": self._client.device_info.firmware_version,
-        }
+        self._attr_unique_id = self._device_id
 
     @property
     def _state_data(self) -> DeviceState:
@@ -205,14 +196,6 @@ class FosiS3MediaPlayer(CoordinatorEntity[FosiS3Coordinator], MediaPlayerEntity)
     async def async_set_volume_level(self, volume: float) -> None:
         """Set volume level, range 0..1."""
         await self._client.set_volume(int(volume * 100))
-
-    async def async_volume_up(self) -> None:
-        """Volume up the media player."""
-        await self._client.set_volume(self._state_data.volume + 5)
-
-    async def async_volume_down(self) -> None:
-        """Volume down the media player."""
-        await self._client.set_volume(self._state_data.volume - 5)
 
     async def async_media_play(self) -> None:
         """Send play command."""

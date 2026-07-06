@@ -6,10 +6,9 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
 from .coordinator import FosiS3Coordinator
+from .entity import FosiS3Entity
 
 AUDIO_OUTPUT_OPTIONS = ["Optical Out", "RCA/XLR Out"]
 
@@ -24,10 +23,9 @@ async def async_setup_entry(
     async_add_entities([FosiS3AudioOutputSelect(coordinator)])
 
 
-class FosiS3AudioOutputSelect(CoordinatorEntity[FosiS3Coordinator], SelectEntity):
+class FosiS3AudioOutputSelect(FosiS3Entity, SelectEntity):
     """Representation of Fosi S3 audio output mode."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "audio_output"
     _attr_icon = "mdi:audio-video"
     _attr_options = AUDIO_OUTPUT_OPTIONS
@@ -35,12 +33,7 @@ class FosiS3AudioOutputSelect(CoordinatorEntity[FosiS3Coordinator], SelectEntity
     def __init__(self, coordinator: FosiS3Coordinator) -> None:
         """Initialize the select."""
         super().__init__(coordinator)
-        self._client = coordinator.client
-        unique_id = self._client.device_info.system_member_id or self._client.host
-        self._attr_unique_id = f"{unique_id}_audio_output"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, unique_id)},
-        }
+        self._attr_unique_id = f"{self._device_id}_audio_output"
 
     @property
     def current_option(self) -> str:

@@ -17,7 +17,7 @@ from custom_components.fosi_s3.const import DOMAIN
 
 from .conftest import make_device_state
 
-ENTITY_ID = "number.display_brightness"
+ENTITY_ID = "number.living_room_display_brightness"
 
 
 async def _setup_entity(hass: HomeAssistant, mock_fosi_client) -> MockConfigEntry:
