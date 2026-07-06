@@ -22,8 +22,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Not yet submitted to the home-assistant/brands repo.
-          ignore: brands
 
   test:
     name: Lint & test
