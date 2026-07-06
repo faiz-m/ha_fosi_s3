@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.util import slugify
-from pyfosi.models import (
+from custom_components.fosi_s3.pyfosi.models import (
     AudioFormat,
     DeviceInfo,
     DeviceState,

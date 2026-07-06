@@ -38,7 +38,7 @@ from homeassistant.const import (
     STATE_PLAYING,
 )
 from homeassistant.core import HomeAssistant
-from pyfosi.models import (
+from custom_components.fosi_s3.pyfosi.models import (
     AudioFormat,
     PlayerState,
     PlayState,
