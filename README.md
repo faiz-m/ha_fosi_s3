@@ -89,10 +89,11 @@ setup and the (light) policy on AI-assisted contributions.
 
 ## AI assistance
 
-This project was developed with AI assistance (Claude Code). All code is
-reviewed, tested, and maintained by a human; AI-generated changes are verified
-before they land. Contributions made with AI assistance are welcome under the
-same bar — see [CONTRIBUTING.md](CONTRIBUTING.md).
+This project is developed primarily by an AI agent (Claude Code) under human
+direction. The maintainer reviews the approach and plans, ensures changes are
+covered by an automated test suite, and directs code review — but does not
+hand-review every line. Contributions made with AI assistance are welcome under
+the same bar — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
