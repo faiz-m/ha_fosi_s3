@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.util import slugify
 from pyfosi.models import (
     AudioFormat,
     DeviceInfo,
@@ -38,6 +39,11 @@ def make_device_info(**overrides) -> DeviceInfo:
     )
     defaults.update(overrides)
     return DeviceInfo(**defaults)
+
+
+# has_entity_name prefixes entity_ids with the slugified device name, so tests
+# derive it from the fixture rather than hard-coding "living_room".
+DEVICE_SLUG = slugify(make_device_info().device_name)
 
 
 def make_device_state(**overrides) -> DeviceState:

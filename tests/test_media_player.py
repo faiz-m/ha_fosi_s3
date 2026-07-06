@@ -49,9 +49,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fosi_s3.const import DOMAIN
 
-from .conftest import make_device_state
+from .conftest import DEVICE_SLUG, make_device_state
 
-ENTITY_ID = "media_player.living_room"
+ENTITY_ID = f"media_player.{DEVICE_SLUG}"
 
 
 async def _setup_entity(hass: HomeAssistant, mock_fosi_client) -> MockConfigEntry:
