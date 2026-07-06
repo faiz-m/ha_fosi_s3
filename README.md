@@ -92,8 +92,9 @@ setup and the (light) policy on AI-assisted contributions.
 This project is developed primarily by an AI agent (Claude Code) under human
 direction. The maintainer reviews the approach and plans, ensures changes are
 covered by an automated test suite, and directs code review — but does not
-hand-review every line. Contributions made with AI assistance are welcome under
-the same bar — see [CONTRIBUTING.md](CONTRIBUTING.md).
+hand-review every line. It has also been running on the maintainer's own Home
+Assistant setup for a couple of months. Contributions made with AI assistance
+are welcome under the same bar — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
