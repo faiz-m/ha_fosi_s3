@@ -41,8 +41,7 @@ def make_device_info(**overrides) -> DeviceInfo:
     return DeviceInfo(**defaults)
 
 
-# has_entity_name prefixes entity_ids with the slugified device name, so tests
-# derive it from the fixture rather than hard-coding "living_room".
+# has_entity_name prefixes each entity_id with the slugified device name.
 DEVICE_SLUG = slugify(make_device_info().device_name)
 
 
