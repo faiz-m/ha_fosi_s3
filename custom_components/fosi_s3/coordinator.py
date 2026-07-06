@@ -28,7 +28,7 @@ class FosiS3Coordinator(DataUpdateCoordinator[DeviceState]):
         )
         self.client = client
         self.available_sources: list[str] = []
-        self.data = client.state  # Set initial data
+        self.data = client.state
         self.last_update_at = dt_util.utcnow()
         self.client.on_state_change(self._on_device_state_change)
         self.client.on_availability_change(self._on_availability_change)

@@ -95,7 +95,6 @@ async def test_user_flow_host_as_unique_id_fallback(
     )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    # The unique_id is set on the entry. We verify it by attempting to add again.
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     assert entry.unique_id == "10.0.0.100"
 

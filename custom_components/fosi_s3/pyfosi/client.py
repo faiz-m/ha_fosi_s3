@@ -324,7 +324,6 @@ class FosiS3Client:
         track_roles = pld.get("trackRoles", {})
         track_meta = track_roles.get("mediaData", {}).get("metaData", {})
 
-        # Extract source info
         self._state.player.source = SourceInfo(
             service_id=track_meta.get("serviceID", ""),
             service_name=track_meta.get("serviceName", ""),
@@ -332,18 +331,14 @@ class FosiS3Client:
             is_live=track_meta.get("live", False),
         )
 
-        # Extract track metadata
         self._state.player.title = track_roles.get("title") or track_meta.get(
             "title", ""
         )
         self._state.player.artist = track_meta.get("artist", "")
         self._state.player.album = track_meta.get("album", "")
         self._state.player.artwork_url = track_roles.get("icon", "")
-
-        # Duration from status block
         self._state.player.duration_ms = pld.get("status", {}).get("duration", 0)
 
-        # Extract audio format
         resources = track_roles.get("mediaData", {}).get("resources", [])
         if resources:
             res = resources[0]
