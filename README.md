@@ -7,6 +7,15 @@ A custom [Home Assistant](https://www.home-assistant.io/) integration for the
 The S3 runs Fosi's own firmware (Amlogic A113X, not LinkPlay), so this is a
 purpose-built integration rather than a generic DLNA/LinkPlay one.
 
+## Unofficial integration
+
+Fosi does not publish an API for the S3. This integration talks to the device's
+**undocumented local HTTPS API**, which was reverse-engineered by observing the
+traffic between the official Fosi app and the device on the local network. It is
+**not affiliated with, authorized, or endorsed by Fosi Audio**, and it may stop
+working if a firmware update changes the API. Provided as-is, with no warranty —
+use at your own risk.
+
 ## Features
 
 - **Media player** — play / pause / stop / next / previous, volume, mute,
