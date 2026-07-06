@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import ssl
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -15,8 +17,6 @@ from .models import (
     DeviceInfo,
     DeviceState,
     PlayState,
-    PlayerState,
-    PowerState,
     PowerTarget,
     SourceInfo,
 )
@@ -70,6 +70,10 @@ SUBSCRIBE_PATHS = [
 ]
 
 POLL_TIMEOUT_MS = 1500
+# Floor for the interval between empty polls. The device is expected to hold the
+# long-poll open for POLL_TIMEOUT_MS; if it instead returns immediately (stale
+# queue, firmware quirk), this stops the loop from becoming a request storm.
+POLL_MIN_INTERVAL_S = 0.5
 
 
 class FosiS3Error(Exception):
@@ -97,6 +101,8 @@ class FosiS3Client:
         self._state = DeviceState()
         self._device_info: DeviceInfo | None = None
         self._state_callbacks: list[Callable[[DeviceState], None]] = []
+        self._availability_callbacks: list[Callable[[bool], None]] = []
+        self._available = True
 
     @property
     def host(self) -> str:
@@ -110,9 +116,18 @@ class FosiS3Client:
     def device_info(self) -> DeviceInfo | None:
         return self._device_info
 
+    @property
+    def available(self) -> bool:
+        """Whether the device is currently reachable (per the poll loop)."""
+        return self._available
+
     def on_state_change(self, callback: Callable[[DeviceState], None]) -> None:
         """Register a callback for state changes."""
         self._state_callbacks.append(callback)
+
+    def on_availability_change(self, callback: Callable[[bool], None]) -> None:
+        """Register a callback fired when device reachability changes."""
+        self._availability_callbacks.append(callback)
 
     def _notify_state_change(self) -> None:
         for callback in self._state_callbacks:
@@ -120,6 +135,17 @@ class FosiS3Client:
                 callback(self._state)
             except Exception:
                 _LOGGER.exception("Error in state change callback")
+
+    def _set_available(self, available: bool) -> None:
+        """Update reachability and notify listeners only on a change."""
+        if available == self._available:
+            return
+        self._available = available
+        for callback in self._availability_callbacks:
+            try:
+                callback(available)
+            except Exception:
+                _LOGGER.exception("Error in availability change callback")
 
     # -- Session management --
 
@@ -193,7 +219,12 @@ class FosiS3Client:
 
         return await self._post(
             "/api/setData",
-            {"path": data_path, "role": role, "value": val_payload, "platform": platform},
+            {
+                "path": data_path,
+                "role": role,
+                "value": val_payload,
+                "platform": platform,
+            },
         )
 
     async def get_rows(
@@ -270,7 +301,7 @@ class FosiS3Client:
         if not isinstance(results[5], Exception):
             self._state.display_brightness = _extract_i32(results[5])
         if not isinstance(results[6], Exception):
-            self._state.audio_output = "Optical Out" if results[6].get("preferred") else "RCA/XLR Out"
+            self._state.audio_output = _audio_output_label(results[6].get("preferred"))
 
     def _update_player_state(self, data: dict) -> None:
         val = data.get("value", data)
@@ -278,23 +309,20 @@ class FosiS3Client:
 
         state_str = pld.get("state", "stopped")
         self._state.player.state = PlayState(state_str)
-        
+
         # Map next_ to next and handle missing play when paused
         controls = pld.get("controls", {}).copy()
         if "next_" in controls:
             controls["next"] = controls.pop("next_")
-        
+
         # S3 sometimes omits 'play' key when paused, but we need it to resume
         if state_str == PlayState.PAUSED:
             controls["play"] = True
-            
+
         self._state.player.controls = controls
 
         track_roles = pld.get("trackRoles", {})
         track_meta = track_roles.get("mediaData", {}).get("metaData", {})
-        
-        media_roles = pld.get("mediaRoles", {})
-        media_meta = media_roles.get("mediaData", {}).get("metaData", {})
 
         # Extract source info
         self._state.player.source = SourceInfo(
@@ -305,11 +333,13 @@ class FosiS3Client:
         )
 
         # Extract track metadata
-        self._state.player.title = track_roles.get("title") or track_meta.get("title", "")
+        self._state.player.title = track_roles.get("title") or track_meta.get(
+            "title", ""
+        )
         self._state.player.artist = track_meta.get("artist", "")
         self._state.player.album = track_meta.get("album", "")
         self._state.player.artwork_url = track_roles.get("icon", "")
-        
+
         # Duration from status block
         self._state.player.duration_ms = pld.get("status", {}).get("duration", 0)
 
@@ -341,11 +371,8 @@ class FosiS3Client:
 
     # -- Event subscription & polling --
 
-    async def start_polling(self) -> None:
-        """Subscribe to state changes and start the long-poll loop."""
-        if self._poll_task and not self._poll_task.done():
-            return
-
+    async def _subscribe(self) -> None:
+        """Create an event subscription queue and store its id."""
         subscribe_items = [
             {"path": path, "type": sub_type} for path, sub_type in SUBSCRIBE_PATHS
         ]
@@ -360,35 +387,62 @@ class FosiS3Client:
         if not self._queue_id:
             raise FosiS3Error("Failed to create event subscription queue")
 
+    async def start_polling(self) -> None:
+        """Subscribe to state changes and start the long-poll loop."""
+        if self._poll_task and not self._poll_task.done():
+            return
+
+        await self._subscribe()
         self._poll_task = asyncio.create_task(self._poll_loop())
 
     async def stop_polling(self) -> None:
         """Stop the long-poll loop."""
         if self._poll_task and not self._poll_task.done():
             self._poll_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._poll_task
-            except asyncio.CancelledError:
-                pass
             self._poll_task = None
 
     async def _poll_loop(self) -> None:
         while True:
             try:
+                start = time.monotonic()
                 events = await self._get(
                     "/api/event/pollQueue",
                     {"queueId": self._queue_id, "timeout": str(POLL_TIMEOUT_MS)},
                 )
                 if events:
                     self._process_poll_events(events)
+                self._set_available(True)
+                # If the poll returned empty faster than the long-poll hold, floor
+                # the rate so a misbehaving device can't cause a request storm.
+                if not events:
+                    elapsed = time.monotonic() - start
+                    if elapsed < POLL_MIN_INTERVAL_S:
+                        await asyncio.sleep(POLL_MIN_INTERVAL_S - elapsed)
             except asyncio.CancelledError:
                 raise
             except aiohttp.ClientError:
                 _LOGGER.warning("Poll connection lost, retrying in 5s")
+                self._set_available(False)
                 await asyncio.sleep(5)
+                await self._recover_subscription()
             except Exception:
                 _LOGGER.exception("Unexpected error in poll loop")
+                self._set_available(False)
                 await asyncio.sleep(5)
+                await self._recover_subscription()
+
+    async def _recover_subscription(self) -> None:
+        """Re-create the event queue after a drop; the device may have rebooted,
+        which invalidates the old queue id. Failures here are retried by the loop."""
+        try:
+            await self._subscribe()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Still unreachable; the next poll iteration will back off and retry.
+            _LOGGER.debug("Re-subscription attempt failed; will retry")
 
     def _process_poll_events(self, events: list[dict]) -> None:
         changed = False
@@ -427,13 +481,17 @@ class FosiS3Client:
                     self._device_info.features = [f["name"] for f in machine_features]
                 changed = True
             elif path == PATH_BRIGHTNESS:
-                self._state.display_brightness = value.get("i32_", self._state.display_brightness)
+                self._state.display_brightness = value.get(
+                    "i32_", self._state.display_brightness
+                )
                 changed = True
             elif path == PATH_AUDIO_OPTICAL:
-                self._state.audio_output = "Optical Out" if value.get("preferred") else "RCA/XLR Out"
+                self._state.audio_output = _audio_output_label(value.get("preferred"))
                 changed = True
             elif path == PATH_AUDIO_ANALOG:
-                self._state.audio_output = "RCA/XLR Out" if value.get("preferred") else "Optical Out"
+                self._state.audio_output = _audio_output_label(
+                    not value.get("preferred")
+                )
                 changed = True
 
         if changed:
@@ -446,7 +504,7 @@ class FosiS3Client:
         await self.select_source("Optical In")
 
     async def turn_off(self) -> None:
-        """Put device into standby. Since BLE is required for manual standby, 
+        """Put device into standby. Since BLE is required for manual standby,
         we stop music and let the device idleTimer take over."""
         await self.stop()
 
@@ -511,7 +569,7 @@ class FosiS3Client:
         await self.set_data(path, "activate", {"type": "bool_", "bool_": True})
         # Read back actual state — device doesn't emit poll events for this
         data = await self.get_data(PATH_AUDIO_OPTICAL, roles="@all")
-        self._state.audio_output = "Optical Out" if data.get("preferred") else "RCA/XLR Out"
+        self._state.audio_output = _audio_output_label(data.get("preferred"))
 
     async def select_source(self, source: str) -> None:
         """Select input source by name."""
@@ -523,7 +581,7 @@ class FosiS3Client:
                 if row.get("title") == source and row.get("path"):
                     path = row["path"]
                     break
-            
+
         if path:
             await self.set_data(path, "activate", {"type": "bool_", "bool_": True})
         else:
@@ -546,7 +604,11 @@ class FosiS3Client:
             for row in data.get("rows", []):
                 path = row.get("path", "")
                 title = row.get("title", "")
-                if row.get("type") in ("action", "container", "app") and title and path not in _EXCLUDED_PATHS:
+                if (
+                    row.get("type") in ("action", "container", "app")
+                    and title
+                    and path not in _EXCLUDED_PATHS
+                ):
                     sources.append(title)
             return sources if sources else list(SOURCES_INTERNAL.keys())
         except Exception:
@@ -554,6 +616,11 @@ class FosiS3Client:
 
 
 # -- Value extraction helpers --
+
+
+def _audio_output_label(optical_preferred: Any) -> str:
+    """Map the device's 'preferred' flag to an audio-output option name."""
+    return "Optical Out" if optical_preferred else "RCA/XLR Out"
 
 
 def _extract_string(data: dict) -> str:

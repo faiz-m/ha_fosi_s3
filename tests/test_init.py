@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntryState
-
+from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-from custom_components.fosi_s3.pyfosi import FosiS3ConnectionError
 
 from custom_components.fosi_s3.const import DOMAIN
 from custom_components.fosi_s3.coordinator import FosiS3Coordinator
+from custom_components.fosi_s3.pyfosi import FosiS3ConnectionError
 
 
 async def test_setup_entry(hass: HomeAssistant, mock_fosi_client) -> None:
@@ -31,10 +28,10 @@ async def test_setup_entry(hass: HomeAssistant, mock_fosi_client) -> None:
     assert isinstance(entry.runtime_data, FosiS3Coordinator)
 
 
-async def test_setup_entry_connection_error(
+async def test_setup_entry_connection_error_retries(
     hass: HomeAssistant, mock_fosi_client
 ) -> None:
-    """Test setup fails gracefully on connection error."""
+    """A connection error should schedule a retry, not a hard setup error."""
     mock_fosi_client.connect.side_effect = FosiS3ConnectionError("Connection refused")
 
     entry = MockConfigEntry(
@@ -46,8 +43,8 @@ async def test_setup_entry_connection_error(
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert entry.state is ConfigEntryState.SETUP_ERROR
-    mock_fosi_client.disconnect.assert_awaited_once()
+    # ConfigEntryNotReady -> HA retries with backoff rather than failing outright.
+    assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
 async def test_unload_entry(hass: HomeAssistant, mock_fosi_client) -> None:

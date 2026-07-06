@@ -6,13 +6,11 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST
 
-from .pyfosi import FosiS3Client, FosiS3ConnectionError
-
 from .const import DOMAIN
+from .pyfosi import FosiS3Client, FosiS3ConnectionError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,8 +47,8 @@ class FosiS3ConfigFlow(ConfigFlow, domain=DOMAIN):
                 device_info = client.device_info
                 unique_id = device_info.system_member_id or host
 
-                self._abort_if_unique_id_configured()
                 await self.async_set_unique_id(unique_id)
+                self._abort_if_unique_id_configured()
 
                 title = device_info.device_name or device_info.product_name or host
                 return self.async_create_entry(

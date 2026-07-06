@@ -4,14 +4,19 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "ha-fosi-s3"
-version = "0.1.0"
-requires-python = ">=3.11"
+version = "1.0.0"
+# Matches Home Assistant, which requires Python 3.13+; the integration also uses
+# PEP 695 `type` alias syntax (3.12+).
+requires-python = ">=3.13"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-homeassistant-custom-component",
 ]
+
+[tool.ruff]
+target-version = "py313"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

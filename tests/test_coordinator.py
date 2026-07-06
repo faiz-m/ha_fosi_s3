@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.fosi_s3.coordinator import FosiS3Coordinator
@@ -16,8 +14,38 @@ from .conftest import make_device_state, make_mock_client
 async def test_registers_state_callback(hass: HomeAssistant) -> None:
     """Coordinator should register a callback on the client."""
     client = make_mock_client()
-    coordinator = FosiS3Coordinator(hass, client)
+    FosiS3Coordinator(hass, client)
     client.on_state_change.assert_called_once()
+
+
+async def test_registers_availability_callback(hass: HomeAssistant) -> None:
+    """Coordinator should register an availability callback on the client."""
+    client = make_mock_client()
+    FosiS3Coordinator(hass, client)
+    client.on_availability_change.assert_called_once()
+
+
+async def test_availability_change_marks_unavailable(hass: HomeAssistant) -> None:
+    """A lost device connection should flip the coordinator to unavailable."""
+    client = make_mock_client()
+    coordinator = FosiS3Coordinator(hass, client)
+    coordinator.async_update_listeners = MagicMock()
+
+    client.push_availability(False)
+
+    assert coordinator.last_update_success is False
+    coordinator.async_update_listeners.assert_called_once()
+
+
+async def test_availability_change_restores_available(hass: HomeAssistant) -> None:
+    """Recovering the connection should flip the coordinator back to available."""
+    client = make_mock_client()
+    coordinator = FosiS3Coordinator(hass, client)
+    client.push_availability(False)
+    assert coordinator.last_update_success is False
+
+    client.push_availability(True)
+    assert coordinator.last_update_success is True
 
 
 async def test_start_begins_polling(hass: HomeAssistant) -> None:

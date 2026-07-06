@@ -11,46 +11,45 @@ from homeassistant.components.media_player import (
     ATTR_MEDIA_POSITION_UPDATED_AT,
     ATTR_MEDIA_VOLUME_LEVEL,
     ATTR_MEDIA_VOLUME_MUTED,
-    DOMAIN as MP_DOMAIN,
+    SERVICE_MEDIA_NEXT_TRACK,
     SERVICE_MEDIA_PAUSE,
     SERVICE_MEDIA_PLAY,
-    SERVICE_MEDIA_STOP,
-    SERVICE_MEDIA_NEXT_TRACK,
     SERVICE_MEDIA_PREVIOUS_TRACK,
-
+    SERVICE_MEDIA_STOP,
     SERVICE_SELECT_SOURCE,
+    SERVICE_VOLUME_DOWN,
     SERVICE_VOLUME_MUTE,
     SERVICE_VOLUME_SET,
     SERVICE_VOLUME_UP,
-    SERVICE_VOLUME_DOWN,
     MediaPlayerEntityFeature,
+)
+from homeassistant.components.media_player import (
+    DOMAIN as MP_DOMAIN,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
+    STATE_BUFFERING,
     STATE_IDLE,
     STATE_OFF,
     STATE_PAUSED,
     STATE_PLAYING,
-    STATE_BUFFERING,
 )
 from homeassistant.core import HomeAssistant
-
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from pyfosi.models import (
     AudioFormat,
-    PlayState,
     PlayerState,
+    PlayState,
     PowerState,
     PowerTarget,
     SourceInfo,
 )
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fosi_s3.const import DOMAIN
-from .conftest import make_device_state
 
+from .conftest import make_device_state
 
 ENTITY_ID = "media_player.living_room"
 
@@ -189,7 +188,7 @@ class TestMediaPlayerProperties:
         await _setup_entity(hass, mock_fosi_client)
         state = hass.states.get(ENTITY_ID)
         features = state.attributes.get("supported_features")
-        
+
         expected = (
             MediaPlayerEntityFeature.VOLUME_SET
             | MediaPlayerEntityFeature.VOLUME_MUTE
@@ -236,7 +235,9 @@ class TestMediaPlayerMetadata:
         state = hass.states.get(ENTITY_ID)
         assert state.attributes[ATTR_MEDIA_ARTIST] == "Saahel"
         assert state.attributes[ATTR_MEDIA_ALBUM_NAME] == "TERA PATA"
-        assert state.attributes.get("entity_picture").startswith("/api/media_player_proxy/")
+        assert state.attributes.get("entity_picture").startswith(
+            "/api/media_player_proxy/"
+        )
         assert state.attributes[ATTR_MEDIA_DURATION] == 166
         assert state.attributes[ATTR_MEDIA_POSITION] == 45
         assert ATTR_MEDIA_POSITION_UPDATED_AT in state.attributes

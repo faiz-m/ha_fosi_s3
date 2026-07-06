@@ -7,11 +7,10 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 
-from .pyfosi import FosiS3Client, FosiS3ConnectionError
-
-from .const import DOMAIN
 from .coordinator import FosiS3Coordinator
+from .pyfosi import FosiS3Client, FosiS3ConnectionError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,14 +24,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: FosiS3ConfigEntry) -> bo
     host = entry.data[CONF_HOST]
     client = FosiS3Client(host)
 
+    # connect() disconnects itself on failure. A connection error is transient
+    # (device asleep, router rebooting) — raise ConfigEntryNotReady so HA retries.
     try:
         await client.connect()
     except FosiS3ConnectionError as err:
-        await client.disconnect()
-        raise err
-    except Exception:
-        await client.disconnect()
-        raise
+        raise ConfigEntryNotReady(
+            f"Could not connect to Fosi S3 at {host}"
+        ) from err
 
     coordinator = FosiS3Coordinator(hass, client)
     await coordinator.async_start()

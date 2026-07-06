@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
-
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-
-from custom_components.fosi_s3.pyfosi import FosiS3ConnectionError
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fosi_s3.const import DOMAIN
+from custom_components.fosi_s3.pyfosi import FosiS3ConnectionError
+
 from .conftest import make_device_info
 
 
@@ -99,6 +98,29 @@ async def test_user_flow_host_as_unique_id_fallback(
     # The unique_id is set on the entry. We verify it by attempting to add again.
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     assert entry.unique_id == "10.0.0.100"
+
+
+async def test_user_flow_aborts_if_already_configured(
+    hass: HomeAssistant, mock_fosi_client
+) -> None:
+    """Adding a device whose unique_id already exists should abort."""
+    existing = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": "10.0.0.100"},
+        unique_id="fosis3-00000000-0000-0000-0000-000000000000",
+    )
+    existing.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={"host": "10.0.0.100"},
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
 
 
 async def test_user_flow_product_name_as_title_fallback(

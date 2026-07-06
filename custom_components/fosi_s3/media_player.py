@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 from datetime import datetime
+from typing import Any
 
 from homeassistant.components.media_player import (
     MediaPlayerDeviceClass,
@@ -18,11 +18,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .pyfosi import FosiS3Client
-from .pyfosi.models import DeviceState, PlayState, PowerTarget
-
 from .const import DOMAIN
 from .coordinator import FosiS3Coordinator
+from .pyfosi.models import DeviceState, PlayState, PowerTarget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,7 +64,7 @@ class FosiS3MediaPlayer(CoordinatorEntity[FosiS3Coordinator], MediaPlayerEntity)
         """Return the state of the device."""
         if not self._state_data:
             return None
-            
+
         if self._state_data.power.target == PowerTarget.NETWORK_STANDBY:
             return MediaPlayerState.OFF
 
@@ -77,7 +75,7 @@ class FosiS3MediaPlayer(CoordinatorEntity[FosiS3Coordinator], MediaPlayerEntity)
             return MediaPlayerState.PAUSED
         if play_state == PlayState.TRANSITIONING:
             return MediaPlayerState.BUFFERING
-        
+
         return MediaPlayerState.IDLE
 
     @property
@@ -188,7 +186,7 @@ class FosiS3MediaPlayer(CoordinatorEntity[FosiS3Coordinator], MediaPlayerEntity)
             attr["channels"] = fmt.channels
         if fmt.mime_type:
             attr["mime_type"] = fmt.mime_type
-        
+
         attr["power_reason"] = self._state_data.power.reason
         return attr
 

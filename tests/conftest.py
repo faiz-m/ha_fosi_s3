@@ -5,14 +5,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from homeassistant.util import dt as dt_util
 from pyfosi.models import (
     AudioFormat,
     DeviceInfo,
     DeviceState,
-    PlayState,
     PlayerState,
+    PlayState,
     PowerState,
     PowerTarget,
     SourceInfo,
@@ -49,7 +47,13 @@ def make_device_state(**overrides) -> DeviceState:
             state=PlayState.STOPPED,
             source=SourceInfo(),
             audio_format=AudioFormat(),
-            controls={"play": True, "pause": True, "next": True, "previous": True, "seekTime": True},
+            controls={
+                "play": True,
+                "pause": True,
+                "next": True,
+                "previous": True,
+                "seekTime": True,
+            },
         ),
         power=PowerState(target=PowerTarget.ONLINE, reason="userActivity"),
         volume=50,
@@ -82,13 +86,20 @@ def make_mock_client(**state_overrides) -> AsyncMock:
     client.next = AsyncMock()
     client.previous = AsyncMock()
     client.seek = AsyncMock()
-    client.get_available_sources = AsyncMock(return_value=["Hdmi In", "Optical In", "Bluetooth"])
+    client.get_available_sources = AsyncMock(
+        return_value=["Hdmi In", "Optical In", "Bluetooth"]
+    )
 
     # Capture callback and update state when called
     def _on_state_change(callback):
         client._state_callback = callback
 
     client.on_state_change = MagicMock(side_effect=_on_state_change)
+
+    def _on_availability_change(callback):
+        client._availability_callback = callback
+
+    client.on_availability_change = MagicMock(side_effect=_on_availability_change)
 
     # Helper for tests to push updates
     def _push_state(new_state):
@@ -97,6 +108,12 @@ def make_mock_client(**state_overrides) -> AsyncMock:
             client._state_callback(new_state)
 
     client.push_state = _push_state
+
+    def _push_availability(available):
+        if hasattr(client, "_availability_callback"):
+            client._availability_callback(available)
+
+    client.push_availability = _push_availability
     return client
 
 
@@ -115,7 +132,7 @@ def mock_fosi_client_class():
         client.device_info = make_device_info()
         client.state = make_device_state()
         client.host = "10.0.0.100"
-        
+
         client.connect = AsyncMock()
         client.disconnect = AsyncMock()
         client.start_polling = AsyncMock()
@@ -130,17 +147,28 @@ def mock_fosi_client_class():
         client.select_source = AsyncMock()
         client.turn_on = AsyncMock()
         client.turn_off = AsyncMock()
-        client.get_available_sources = AsyncMock(return_value=["Hdmi In", "Optical In", "Bluetooth"])
+        client.get_available_sources = AsyncMock(
+            return_value=["Hdmi In", "Optical In", "Bluetooth"]
+        )
 
         def _on_state_change(callback):
             client._state_callback = callback
         client.on_state_change = MagicMock(side_effect=_on_state_change)
+
+        def _on_availability_change(callback):
+            client._availability_callback = callback
+        client.on_availability_change = MagicMock(side_effect=_on_availability_change)
 
         def _push_state(new_state):
             client.state = new_state
             if hasattr(client, "_state_callback"):
                 client._state_callback(new_state)
         client.push_state = _push_state
+
+        def _push_availability(available):
+            if hasattr(client, "_availability_callback"):
+                client._availability_callback(available)
+        client.push_availability = _push_availability
 
         yield mock_class
 

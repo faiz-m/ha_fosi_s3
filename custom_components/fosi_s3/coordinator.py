@@ -9,10 +9,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
+from .const import DOMAIN
 from .pyfosi import FosiS3Client
 from .pyfosi.models import DeviceState
-
-from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,11 +31,21 @@ class FosiS3Coordinator(DataUpdateCoordinator[DeviceState]):
         self.data = client.state  # Set initial data
         self.last_update_at = dt_util.utcnow()
         self.client.on_state_change(self._on_device_state_change)
+        self.client.on_availability_change(self._on_availability_change)
 
     def _on_device_state_change(self, state: DeviceState) -> None:
         """Called by pyfosi when the device pushes a state update."""
         self.last_update_at = dt_util.utcnow()
         self.async_set_updated_data(state)
+
+    def _on_availability_change(self, available: bool) -> None:
+        """Called by pyfosi when the device becomes (un)reachable.
+
+        Mirror it onto the coordinator so entities go unavailable when the poll
+        loop can't reach the device, instead of showing frozen state as live.
+        """
+        self.last_update_success = available
+        self.async_update_listeners()
 
     async def _async_update_data(self) -> DeviceState:
         """Refresh dynamic data like available sources."""

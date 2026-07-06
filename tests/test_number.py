@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from homeassistant.components.number import (
     ATTR_VALUE,
-    DOMAIN as NUMBER_DOMAIN,
     SERVICE_SET_VALUE,
+)
+from homeassistant.components.number import (
+    DOMAIN as NUMBER_DOMAIN,
 )
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
-
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fosi_s3.const import DOMAIN
-from .conftest import make_device_state
 
+from .conftest import make_device_state
 
 ENTITY_ID = "number.display_brightness"
 
