@@ -6,6 +6,7 @@ from homeassistant.components.media_player import (
     ATTR_INPUT_SOURCE,
     ATTR_MEDIA_ALBUM_NAME,
     ATTR_MEDIA_ARTIST,
+    ATTR_MEDIA_CONTENT_TYPE,
     ATTR_MEDIA_DURATION,
     ATTR_MEDIA_POSITION,
     ATTR_MEDIA_POSITION_UPDATED_AT,
@@ -98,6 +99,7 @@ class TestMediaPlayerState:
 
         state = hass.states.get(ENTITY_ID)
         assert state.state == STATE_PLAYING
+        assert state.attributes[ATTR_MEDIA_CONTENT_TYPE] == "music"
 
     async def test_state_paused(
         self, hass: HomeAssistant, mock_fosi_client

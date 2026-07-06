@@ -11,6 +11,7 @@ from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    MediaType,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -40,6 +41,7 @@ class FosiS3MediaPlayer(FosiS3Entity, MediaPlayerEntity):
     _attr_device_class = MediaPlayerDeviceClass.RECEIVER
     _attr_name = None  # primary entity — takes the device name
     _attr_volume_step = 0.05
+    _attr_media_content_type = MediaType.MUSIC
 
     def __init__(self, coordinator: FosiS3Coordinator) -> None:
         """Initialize the media player."""
