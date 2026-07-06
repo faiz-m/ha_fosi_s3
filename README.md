@@ -82,6 +82,18 @@ Run the tests:
 python3 -m pytest
 ```
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev
+setup and the (light) policy on AI-assisted contributions.
+
+## AI assistance
+
+This project was developed with AI assistance (Claude Code). All code is
+reviewed, tested, and maintained by a human; AI-generated changes are verified
+before they land. Contributions made with AI assistance are welcome under the
+same bar — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 [MIT](LICENSE) © Faiz M
